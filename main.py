@@ -4,27 +4,25 @@ import os
 from openai import OpenAI
 import socketio
 from dotenv import load_dotenv
+from pydantic import BaseModel
 
-load_dotenv(dotenv_path='.env.prod')
-openai_api_key = os.getenv("OPENAI_KEY")
-app_url = os.getenv("APP_URL")
+load_dotenv(dotenv_path='.env')
+app_url = os.environ.get('APP_URL')
 
 
-if not openai_api_key or not app_url:
+if not app_url:
     raise ValueError("environment variables OPENAI_KEY and APP_URL must be set")
 
 app = FastAPI()
 
 sio = socketio.AsyncServer(
     async_mode="asgi",
-    cors_allowed_origins=["http://localhost:3000","https://chinmai.vercel.app/"],  
+    cors_allowed_origins=["http://localhost:3000",app_url],  
 )
 app.mount("/socket.io", socketio.ASGIApp(socketio_server=sio))
 
 
-client = OpenAI(
-    api_key=openai_api_key
-)
+
 
 
 @sio.event
@@ -36,16 +34,33 @@ async def connect(sid, environ):
 async def disconnect(sid):
     print(f"Client {sid} disconnected")
 
+class UserMessage(BaseModel):
+    text: str
+    openai_key: str
+
 
 @sio.event
 async def user_message(sid, data):
-    print(f"Received message from {sid}: {data}")
+    
+    openai_key = data["openai_key"]
+    input_text = data["text"]
+
+    if (openai_key is None):
+         await sio.emit(
+            "chat_message",
+            "Sorry, there was an error processing your request because openai key is missing. Please provide openai key.",
+            to=sid,
+        )
+
+    client = OpenAI(api_key = openai_key)
+
+    print(f"Received message from {sid}: {input_text}")
     try:
         stream = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": data},
+                {"role": "user", "content": input_text},
             ],
             stream=True,
         )
