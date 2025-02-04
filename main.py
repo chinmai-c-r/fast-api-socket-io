@@ -8,7 +8,7 @@ from pydantic import BaseModel
 
 load_dotenv(dotenv_path='.env')
 app_url = os.environ.get('APP_URL')
-
+deepsync_key = os.environ.get('DEEPSYNC_KEY')
 
 if not app_url:
     raise ValueError("environment variables OPENAI_KEY and APP_URL must be set")
@@ -49,7 +49,7 @@ async def user_message(sid, data):
     #         to=sid,
     #     )
 
-    client = OpenAI(api_key = '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', base_url= "https://openrouter.ai/api/v1",)
+    client = OpenAI(api_key = deepsync_key, base_url= "https://openrouter.ai/api/v1",)
 
     print(f"Received message from {sid}: {input_text}")
     try:
