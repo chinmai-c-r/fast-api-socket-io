@@ -17,12 +17,9 @@ app = FastAPI()
 
 sio = socketio.AsyncServer(
     async_mode="asgi",
-    cors_allowed_origins=["http://localhost:3000",app_url],  
+    cors_allowed_origins=["http://localhost:3000","http://localhost:3001",app_url],  
 )
 app.mount("/socket.io", socketio.ASGIApp(socketio_server=sio))
-
-
-
 
 
 @sio.event
@@ -42,22 +39,23 @@ class UserMessage(BaseModel):
 @sio.event
 async def user_message(sid, data):
     
-    openai_key = data["openai_key"]
+    # openai_key = data["openai_key"]
     input_text = data["text"]
 
-    if (openai_key is None):
-         await sio.emit(
-            "chat_message",
-            "Sorry, there was an error processing your request because openai key is missing. Please provide openai key.",
-            to=sid,
-        )
+    # if (openai_key is None):
+    #      await sio.emit(
+    #         "chat_message",
+    #         "Sorry, there was an error processing your request because openai key is missing. Please provide openai key.",
+    #         to=sid,
+    #     )
 
-    client = OpenAI(api_key = openai_key)
+    client = OpenAI(api_key = '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', base_url= "https://openrouter.ai/api/v1",)
 
     print(f"Received message from {sid}: {input_text}")
     try:
         stream = client.chat.completions.create(
-            model="gpt-4o-mini",
+            # model="gpt-4o-mini",
+            model="deepseek/deepseek-chat",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": input_text},
