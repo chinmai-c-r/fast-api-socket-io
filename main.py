@@ -1,19 +1,26 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
-from openai import OpenAI
+import google.generativeai as genai
 import socketio
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
 load_dotenv(dotenv_path='.env')
 app_url = os.environ.get('APP_URL')
-deepsync_key = os.environ.get('DEEPSYNC_KEY')
+gemini_key = os.environ.get('GEMINI_API_KEY')
 
-if not app_url:
-    raise ValueError("environment variables OPENAI_KEY and APP_URL must be set")
+if not app_url or not gemini_key:
+    raise ValueError("environment variables GEMINI_API_KEY and APP_URL must be set")
+
+genai.configure(api_key=gemini_key)
 
 app = FastAPI()
+
+
+@app.get("/")
+def read_root():
+    return {"data": "Api running"}
 
 sio = socketio.AsyncServer(
     async_mode="asgi",
@@ -38,46 +45,22 @@ class UserMessage(BaseModel):
 
 @sio.event
 async def user_message(sid, data):
-    
-    # openai_key = data["openai_key"]
     input_text = data["text"]
-
-    # if (openai_key is None):
-    #      await sio.emit(
-    #         "chat_message",
-    #         "Sorry, there was an error processing your request because openai key is missing. Please provide openai key.",
-    #         to=sid,
-    #     )
-
-    client = OpenAI(api_key = deepsync_key, base_url= "https://openrouter.ai/api/v1",)
-
+    
     print(f"Received message from {sid}: {input_text}")
     try:
-        stream = client.chat.completions.create(
-            # model="gpt-4o-mini",
-            model="deepseek/deepseek-chat",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": input_text},
-            ],
-            stream=True,
-        )
+        model = genai.GenerativeModel("gemini-pro")
+        response = model.generate_content(input_text, stream=True)
 
-        for chunk in stream:
-            if chunk.choices[0].delta.content is not None:
-                content = chunk.choices[0].delta.content
-                await sio.emit("chat_message", content, to=sid)
-
+        for chunk in response:  # Use a normal for loop
+            if chunk.text:
+                await sio.emit("chat_message", chunk.text, to=sid)
+        
         await sio.emit("chat_message_end", {}, to=sid)
-
+    
     except Exception as e:
         print(f"Error: {e}")
-        await sio.emit(
-            "chat_message",
-            "Sorry, there was an error processing your request.",
-            to=sid,
-        )
-
+        await sio.emit("chat_message", "Sorry, there was an error processing your request.", to=sid)
 
 # if __name__ == "__main__":
 #     import uvicorn
