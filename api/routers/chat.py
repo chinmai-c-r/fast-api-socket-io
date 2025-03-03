@@ -1,4 +1,3 @@
-from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import os
 import google.generativeai as genai
@@ -14,19 +13,10 @@ if not app_url or not gemini_key:
     raise ValueError("environment variables GEMINI_API_KEY and APP_URL must be set")
 
 genai.configure(api_key=gemini_key)
-
-app = FastAPI()
-
-
-@app.get("/")
-def read_root():
-    return {"data": "Api running"}
-
 sio = socketio.AsyncServer(
     async_mode="asgi",
     cors_allowed_origins=["http://localhost:3000","http://localhost:3001",app_url],  
 )
-app.mount("/socket.io", socketio.ASGIApp(socketio_server=sio))
 
 
 @sio.event
