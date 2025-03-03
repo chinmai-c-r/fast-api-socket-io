@@ -39,7 +39,7 @@ async def user_message(sid, data):
     
     print(f"Received message from {sid}: {input_text}")
     try:
-        model = genai.GenerativeModel("gemini-pro")
+        model = genai.GenerativeModel("gemini-1.5-flash-002")
         response = model.generate_content(input_text, stream=True)
 
         for chunk in response:  # Use a normal for loop
